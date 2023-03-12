@@ -1,144 +1,256 @@
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 using namespace std;
 
-class Coach{
-    public:
-    string cateogry;
-    vector<int> seats;
+class Route
+{
+public:
+    pair<string, int> station;
 };
-
-class Train{
-    public:
+class Seat
+{
+public:
     int number;
+    vector<string> dates;
     string src;
     string dest;
-    int dist;
-    vector<Coach*> coaches;
+};
+class Coach
+{
+public:
+    char category;
+    int coachNum;
+    vector<Seat *> seats;
+};
+class Train
+{
+public:
+    string number;
+    vector<Route *> routes;
+    vector<Coach *> coaches;
 };
 
-vector<string> splitDistance(string s){
+vector<string> split(string s)
+{
     vector<string> ans;
     string temp = "";
-    for(int i=0;i<s.size();i++){
-        if(s[i] == '-'){
+    for (auto i : s)
+    {
+        if (i == ' ')
+        {
             ans.push_back(temp);
             temp = "";
-        }else{
+        }
+        else
+            temp += i;
+    }
+    ans.push_back(temp);
+    return ans;
+}
+vector<string> splitHyphen(string s)
+{
+    vector<string> ans;
+    string temp = "";
+    for (int i = 0; i < s.size(); i++)
+    {
+        if (s[i] == '-')
+        {
+            ans.push_back(temp);
+            temp = "";
+        }
+        else
+        {
             temp += s[i];
         }
     }
     ans.push_back(temp);
     return ans;
 }
-
-Train* getTrainDetails(string trainDetails){
-    vector<string> tempStrArr;
-    string temp = "";
-    for(int i=0;i<trainDetails.size();i++){
-        if(trainDetails[i] == ' '){
-            tempStrArr.push_back(temp);
-            temp = "";
-        }else temp += trainDetails[i];
+Route *addRoute(string s)
+{
+    Route *r = new Route();
+    vector<string> temp = splitHyphen(s);
+    r->station = make_pair(temp[0], stoi(temp[1]));
+    return r;
+}
+Coach *addCoach(string s)
+{
+    Coach *c = new Coach();
+    vector<string> temp = splitHyphen(s);
+    c->category = temp[0][0];
+    c->coachNum = stoi(temp[0].substr(1));
+    int seatCount = stoi(temp[1]);
+    vector<Seat *> coachSeats(seatCount);
+    for (int i = 0; i < seatCount; i++)
+    {
+        Seat *currSeat = new Seat();
+        currSeat->number = i + 1;
     }
-    tempStrArr.push_back(temp);
-    // for(auto i:tempStrArr){
-    //     cout<<i<<endl;
-    // }
-    Train * t = new Train();
-    t->number = stoi(tempStrArr[0]);
-    t->src = splitDistance(tempStrArr[1])[0];
-    t->dest = splitDistance(tempStrArr[2])[0];
-    t->dist = stoi(splitDistance(tempStrArr[2])[1]);
-    return t;
+    c->seats = coachSeats;
+    return c;
 }
-void printCoach(Coach* c){
-    cout<<c->cateogry<<endl;
-    for(auto i:c->seats)cout<<i<<" ";
-    cout<<endl;
-    return;
-}
-void printTrain(Train* t){
-    cout<<t->number<<","<<t->dest<<","<<t->src<<","<<t->dist<<endl;
-    for(auto i:t->coaches){
-        printCoach(i);
+void printCoach(vector<Coach *> c)
+{
+    for (auto i : c)
+    {
+        cout << i->category << "," << i->coachNum << endl;
     }
     return;
 }
-vector<pair<string,int>> getCoachDetails(string s){
-    vector<pair<string,int>> ans;
-    vector<string> tempArr;
-    string temp = "";
-    for(auto i:s){
-        if(i == ' '){
-            tempArr.push_back(temp);
-            temp = "";
-        }else temp += i;
+void printRoutes(vector<Route *> r)
+{
+    for (auto i : r)
+    {
+        cout << i->station.first << "," << i->station.second << endl;
     }
-    tempArr.push_back(temp);
-    string coach;
-    int seats;
-    for(int i=1;i<tempArr.size();i++){
-        string temp = "";
-        for(auto j:tempArr[i]){
-            if(j == '-'){
-                coach = temp;
-                temp = "";
-            }else temp += j;
+    return;
+}
+void printTrain(Train *t)
+{
+    cout << "Number :" << t->number << endl;
+    cout << "Coaches :" << endl;
+    printCoach(t->coaches);
+    cout << "Routes : \n";
+    printRoutes(t->routes);
+    return;
+}
+int routeAvailable(vector<Train *> t, string src, string dest)
+{   
+    //cout<<"inside route check\n";
+    for (int i = 0; i < t.size(); i++)
+    {
+        if(t[i]->routes[0]->station.first == src && t[i]->routes[1]->station.first == dest){
+            //cout<<"root found\n";
+            return i;
         }
-        seats = stoi(temp);
-        ans.push_back(make_pair(coach,seats));
     }
-    return ans;
+    return -1;
+}
+bool dateFree(Seat* s,string d){
+    for(auto date:s->dates){
+        cout<<date<<endl;
+        if(date == d) return false;
+    }
+    //cout<<"inside 1\n";
+    return true;
+}
+vector<string> checkVacancy(Train* t,string date,string cate,int quant){
+    unordered_map<string,char> mp;
+    mp["SL"] = 'S';
+    mp["3A"] = 'B';
+    mp["2A"] = 'A';
+    mp["1A"] = 'H';
+
+    int seatsBooked = 0;
+    vector<string> bookSeat;
+    for(auto coach:t->coaches){
+        if(coach->category == mp[cate]){
+            for(auto seat:coach->seats){
+                if(seatsBooked == quant) return bookSeat;
+                if(dateFree(seat,date)){
+                    //cout<<"inside 1\n";
+                    string seatStr = to_string(coach->category) + to_string(coach->coachNum) + "-" + to_string(seat->number); 
+                    bookSeat.push_back(seatStr);
+                    seatsBooked++;
+                }
+            }
+        }
+    }
+   // cout<<"in vacancy\n";
+    cout<<bookSeat.size()<<endl;
+    return bookSeat;
+}
+void bookTicket(Train* t,string date,string cate,int quant){
+    unordered_map<string,char> mp;
+    mp["SL"] = 'S';
+    mp["3A"] = 'B';
+    mp["2A"] = 'A';
+    mp["1A"] = 'H';
+    int seatsBooked = 0;
+    vector<string> bookSeat;
+    for(auto coach:t->coaches){
+        if(coach->category == mp[cate]){
+            for(auto seat:coach->seats){
+                if(seatsBooked == quant) return;
+                if(dateFree(seat,date)){
+                    seat->dates.push_back(date);
+                    seatsBooked++;
+                }
+            }
+        }
+    }
+    return;
 
 }
+int findRate(Train* t,string cate,int quant){
+    unordered_map<string,int> mp;
+    mp["SL"] = 1;
+    mp["3A"] = 2;
+    mp["2A"] = 3;
+    mp["1A"] = 4;
+    int dist = t->routes[t->routes.size() - 1]->station.second;
+    return (dist *quant * mp[cate]);
+}
 
+int main()
+{
+    // data of all trains
+    vector<Train *> trains;
 
-
-
-
-int main(){
-    //data of all trains
-    vector<Train*> trains;
-
-    //maping trains
-    unordered_map<int,pair<string,string>> trainsMap;
-    //train input
     int tt;
-    cin>>tt;
-    for(int i=0;i<tt;i++){
-        //train detials
+    cin >> tt;
+    while (tt--)
+    {
         cin.ignore();
-        string trainDetail;
-        getline(cin,trainDetail);
-        //cout<<trainDetail<<endl;
-        Train* t = new Train();
-        t = getTrainDetails(trainDetail);
-        printTrain(t);
+        string trainDetailStr;
+        getline(cin, trainDetailStr);
+
+        // train details
+        vector<string> trainDetails = split(trainDetailStr);
+        Train *t = new Train();
+        t->number = trainDetails[0];
+        t->routes.push_back(addRoute(trainDetails[1]));
+        t->routes.push_back(addRoute(trainDetails[2]));
+
+        // coach details
+        cin.ignore();
+        string coachDetailStr;
+        getline(cin, coachDetailStr);
+
+        vector<string> coachDetails = split(coachDetailStr);
+        for (int i = 1; i < coachDetails.size(); i++)
+        {
+            t->coaches.push_back(addCoach(coachDetails[i]));
+        }
         trains.push_back(t);
-        trainsMap[t->number] = make_pair(t->src,t->dest);
-
-        //coach details
-        cin.ignore();
-        string coachDetail;
-        getline(cin,coachDetail);
-        vector<pair<string,int>> coachArr = getCoachDetails(coachDetail);
-        for(auto i:coachArr){
-            cout<<i.first<<","<<i.second<<endl;
-        }
-        for(auto i:coachArr){
-            Coach* c = new Coach();
-            vector<int> temp(i.second);
-            c->cateogry = i.first;
-            c->seats = temp;
-            t->coaches.push_back(c);
-        }
-        printTrain(t);
-        
-        
     }
+    // request start
+    while (true)   
+    {
+        int PNR = 100000001;
+        string requestStr;
+        getline(cin, requestStr);
+        
+        vector<string> request = split(requestStr);
+        int idx = routeAvailable(trains, request[0], request[1]);
+        if (idx != -1)
+        {   
+            //cout<<"inside idx \n";
+            //train,src,dest,date,class,num
+            vector<string> bookThis = checkVacancy(trains[idx],request[2],request[3],stoi(request[4]));
 
-    //ticket request start
-    cout<<"over\n";
-
+            if(bookThis.size()){
+                bookTicket(trains[idx],request[2],request[3],stoi(request[4]));
+                cout<<PNR<<" "<<findRate(trains[idx],request[3],stoi(request[4]))<<endl;
+                PNR++;    
+            }else{
+                cout<<"No Vacant Seats"<<endl;
+            }
+        }
+        else
+        {
+            cout << "Train Not Available" << endl;
+        }
+        //cout<<"here\n";
+    }
     return 0;
 }
