@@ -5,7 +5,6 @@ class Coach{
     public:
     string cateogry;
     vector<int> seats;
-    unordered_map<char,vector<vector<int>>> seats;
 };
 
 class Train{
@@ -16,22 +15,7 @@ class Train{
     int dist;
     vector<Coach*> coaches;
 };
-// class CoachS :Train{
-//     public:
-//     vector<vector<int>> seats;
-// };
-// class CoachB : Train{
-//     public:
-//     vector<vector<int>> seats;
-// };
-// class CoachA : Train{
-//     public:
-//     vector<vector<int>> seats;
-// };
-// class CoachH : Train{
-//     public:
-//     vector<vector<int>> seats;
-// };
+
 vector<string> splitDistance(string s){
     vector<string> ans;
     string temp = "";
@@ -67,8 +51,17 @@ Train* getTrainDetails(string trainDetails){
     t->dist = stoi(splitDistance(tempStrArr[2])[1]);
     return t;
 }
+void printCoach(Coach* c){
+    cout<<c->cateogry<<endl;
+    for(auto i:c->seats)cout<<i<<" ";
+    cout<<endl;
+    return;
+}
 void printTrain(Train* t){
     cout<<t->number<<","<<t->dest<<","<<t->src<<","<<t->dist<<endl;
+    for(auto i:t->coaches){
+        printCoach(i);
+    }
     return;
 }
 vector<pair<string,int>> getCoachDetails(string s){
@@ -99,22 +92,8 @@ vector<pair<string,int>> getCoachDetails(string s){
 
 }
 
-// void printCoach(Train* t){
-//     unordered_map<char,vector<vector<int>>> mp = t->coach;
-//     for(auto i:mp){
-//         cout<<"Coach : "<<i.first<<endl;
-//         for(int j=0;j<i.second.size();j++){
-//             cout<<"S-"<<j+1<<endl;
-//             for(auto k:i.second[j]){
-//                 cout<<k<<" ";
-//             }cout<<endl;
-//         }
-//     }
-// }
 
-void printTrains(Train* t){
-    
-}
+
 
 
 int main(){
@@ -143,88 +122,18 @@ int main(){
         string coachDetail;
         getline(cin,coachDetail);
         vector<pair<string,int>> coachArr = getCoachDetails(coachDetail);
-
+        for(auto i:coachArr){
+            cout<<i.first<<","<<i.second<<endl;
+        }
         for(auto i:coachArr){
             Coach* c = new Coach();
             vector<int> temp(i.second);
             c->cateogry = i.first;
             c->seats = temp;
+            t->coaches.push_back(c);
         }
-        printTrains(t);
-        // for(auto i:coachArr){
-        //     vector<int> temp(i.second);
-        //     t->seats[i.first[0]].push_back(temp);
-        // }
-        //printCoach(t);
-        // for(auto i:coachArr){
-        //     char currCoach = i.first[0];
-        //     if(currCoach == 'S'){
-        //         vector<int> temp(i.second);
-        //         t->coaches[0].push_back(temp);
-        //     }else if(currCoach == 'B'){
-        //         vector<int> temp(i.second);
-        //         t->coaches[1].push_back(temp);
-        //     }
-        //     else if(currCoach == 'A'){
-        //         vector<int> temp(i.second);
-        //         t->coaches[2].push_back(temp);
-        //     }
-        //     else{
-        //         vector<int> temp(i.second);
-        //         t->coaches[3].push_back(temp);
-        //     }
-        // }
-        // CoachA* CA;
-        // CoachB* CB;
-        // CoachH* CH;
-        // CoachS* CS;
+        printTrain(t);
         
-        // for(auto i:coachArr){
-        //     char currCoach = i.first[0];
-        //     // cout<<i.first<<","<<i.second<<endl;
-        //     if(t->coach.find(currCoach) == t->coach.end()){
-        //         if(currCoach == 'A'){
-        //             CA = new CoachA();
-        //             CA->seats.push_back(vector<int>(i.second));
-        //         }else if(currCoach == 'B'){
-        //             CB = new CoachB();
-        //             CB->seats.push_back(vector<int>(i.second));
-        //         }
-        //         if(currCoach == 'H'){
-        //             CH = new CoachH();
-        //             CH->seats.push_back(vector<int>(i.second));
-        //         }
-        //         else{
-        //             CS = new CoachS();
-        //             CS->seats.push_back(vector<int>(i.second));
-        //         }
-        //     }else{
-        //          if(currCoach == 'A'){
-        //             CA->seats.push_back(vector<int>(i.second));
-        //         }else if(currCoach == 'B'){
-        //             CB->seats.push_back(vector<int>(i.second));
-        //         }
-        //         if(currCoach == 'H'){
-        //             CH->seats.push_back(vector<int>(i.second));
-        //         }
-        //         else{
-        //             CS->seats.push_back(vector<int>(i.second));
-        //         }
-        //     }
-        // }
-
-        // for(auto i:coachArr){
-        //     string currCoach = i.first;
-        //     int currSeats = i.second;
-        //     char key = currCoach[0];
-        //     if(t->coach.find(key) != t->coach.end()){
-        //         t->coach[key].push_back(vector<int>(currSeats));
-        //     }else{
-        //         t->coach[key] = vector<vector<int>>(currSeats);
-        //     }     
-        // }
-        //printCoach(t);
-
         
     }
 
