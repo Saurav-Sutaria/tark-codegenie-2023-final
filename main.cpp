@@ -8,7 +8,7 @@ class Route{
 class Seat{
     public:
     int number;
-    vector<string> dates;
+    unordered_set<string> dates;
     string src;
     string dest;
 
@@ -18,7 +18,7 @@ class Seat{
 };
 class Coach{
     public:
-    char category;
+    char category;//letter of the coach : S,B,A,H
     int coachNum;
     vector<Seat *> seats;
 };
@@ -101,13 +101,8 @@ int routeAvailable(vector<Train *> t, string src, string dest){
     return -1;
 }
 //function to check is the given seat is booked for a particular date
-bool dateFree(Seat *s, string d){
-    for (auto date : s->dates){
-        if (date == d){
-            return false;
-        }
-    }
-    return true;
+bool isSeatReservedForDate(Seat *s, string d){
+    return (s->dates.find(d) == s->dates.end());    
 }
 //function to check for if vacant seats >= given booking request
 bool checkVacancy(Train *t, string date, string cate, int quant){
@@ -122,7 +117,7 @@ bool checkVacancy(Train *t, string date, string cate, int quant){
         if (coach->category == mp[cate]){
             for (auto seat : coach->seats){
                 if (vacantSeats >= quant) return true;
-                if (dateFree(seat, date)){
+                if (isSeatReservedForDate(seat, date)){
                     vacantSeats++;
                 }
             }
@@ -143,8 +138,8 @@ void bookTicket(Train *t, string date, string cate, int quant){
         if (coach->category == mp[cate]){
             for (auto seat : coach->seats){
                 if (seatsBooked == quant) return;
-                if (dateFree(seat, date)){
-                    seat->dates.push_back(date);
+                if (isSeatReservedForDate(seat, date)){
+                    seat->dates.insert(date);
                     seatsBooked++;
                 }
             }
