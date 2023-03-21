@@ -7,29 +7,44 @@ class Route{
 };
 class Ticket{
     public:
+    string status;//status : Confirmed or Waiting
+    string seatNumber; //seat number or waiting number
     pair<string,int> src;
     pair<string,int> dest;
+    char coachCategory;//letter of the coach : S,B,A,H
     string date;
+    int pnr;
+};
+class Seat{
+    public:
+    int number;
+    char coachCategory;//letter of the coach : S,B,A,H
+    int coachNum;
+    //maping booked ticket with pnr number
+    unordered_map<int,Ticket*> tickets;
+    //unordered_set<string> dates;
+    Seat(){
+        this->number = 0;
+    }
+    Seat(int number){
+        this->number = number;
+    }
 };
 class UserTicket{
     public:
     int pnrNumber;
     string trainNumber;
-    string src;
-    string dest;
+    pair<string,int> src;
+    pair<string,int> dest;
     string date;
+    string coachClass;//sl,3a,2a,1a 
     int totalFare;
-    vector<string> seatNumbers;
+    int totalSeatsBooked;
+    vector<pair<Ticket*,Seat*>> ticketSeatMap;
+    // vector<string> seatNumbers;
+    // vector<string> waitingSeatsNumber;
 };
-class Seat{
-    public:
-    int number;
-    vector<Ticket*> tickets;
-    //unordered_set<string> dates;
-    Seat(int number){
-        this->number = number;
-    }
-};
+
 class Coach{
     public:
     char category;//letter of the coach : S,B,A,H
@@ -37,11 +52,24 @@ class Coach{
     int coachNum;
     vector<Seat *> seats;
 };
+// class WaitingTicket{
+//     public:
+//     string pnrNumber;
+//     string src;
+//     string dest;
+//     string category;
+//     string date;
+// };
 class Train{
     public:
     string number;
+    //each train will have waiting number starting from 1
+    int waitingCount = 1;
     unordered_map<string,int> routes;
     vector<Coach*> coaches;
+    //to map waiting number with a ticket
+    map<string,Ticket*> waitingList;
+    set<Seat*> cancelledSeats;
 };
 
 //function to split string by space
@@ -102,26 +130,27 @@ Coach* addCoach(string s){
     vector<Seat *> coachSeats(seatCount);
     for (int i = 0; i < seatCount; i++){
         Seat* currSeat = new Seat(i+1);
-        coachSeats[i] = currSeat;
+        currSeat->coachCategory = c->category;
+        currSeat->coachNum = c->coachNum;
+        coachSeats[i] = currSeat;   
     }
     c->seats = coachSeats;
     return c;
 }
+int getStationDistance(Train* t,string station){
+    return t->routes[station];
+}
 //function to calculate total fare
-int findFare(Train *trn,vector<string>& userRequest){
-    string src = userRequest[0];
-    string dest = userRequest[1];
-    string category = userRequest[3];
-    int quantity = stoi(userRequest[4]);
+int findFare(UserTicket* userTicket){
     unordered_map<string, int> mp;
     mp["SL"] = 1;
     mp["3A"] = 2;
     mp["2A"] = 3;
     mp["1A"] = 4;
-    int srcDistance = trn->routes[src];
-    int destDistance = trn->routes[dest];
+    int srcDistance = userTicket->src.second;
+    int destDistance = userTicket->dest.second;
     int distanceTravelled = destDistance - srcDistance;
-    return (distanceTravelled * quantity * mp[category]);
+    return (distanceTravelled * userTicket->totalSeatsBooked * mp[userTicket->coachClass]);
 }
 bool checkRouteDateCollision(Train* trn,Ticket* tkt,string src,string dest,string d){
     //if dates are different then no collision
@@ -140,7 +169,7 @@ bool isSeatNotReserved(Train* t,Seat *s,string date,string src,string dest){
     bool status = true;//here true means seat is free
     //traversing all tickets for a given seat
     for(auto tkt:s->tickets){
-        status = status && checkRouteDateCollision(t,tkt,src,dest,date);
+        status = status && checkRouteDateCollision(t,tkt.second,src,dest,date);
     }
     return status; 
 }
@@ -160,14 +189,18 @@ bool checkVacancy(string trainNum,unordered_map<string,Train *> trn, string src,
     }
     return (vacantSeats >= quant);
 }
-/*function to check for route availability
-input : array of all train, source, destination
-output : index of train if route found, else -1
+/*
+function to find the trains based on the given inputed route
+input : user request string/array trains map
+output: set of suitable train numbers
 */
-vector<string> getAvailableTrains(unordered_map<string,Train*> trn, string src, string dest,string coachCategory){
-    vector<string> ans;
-    for(auto i:trn){
-        
+set<string> getAvailableTrains(vector<string>& userRequest,unordered_map<string, Train*> trains){
+    set<string> ans;
+    string src = userRequest[0];
+    string dest = userRequest[1];
+    string coachCategory = userRequest[3];
+
+    for(auto i:trains){
         if( (i.second->routes.find(src) != i.second->routes.end()) && (i.second->routes.find(dest) != i.second->routes.end())){
             //check for reverse journey
             int srcDistance = i.second->routes[src];
@@ -176,7 +209,7 @@ vector<string> getAvailableTrains(unordered_map<string,Train*> trn, string src, 
                 //checking for coach category
                 for(auto j:i.second->coaches){
                     if(j->coachClass == coachCategory){
-                        ans.push_back(i.first);
+                        ans.insert(i.first);
                         break;
                     }
                 }
@@ -185,29 +218,15 @@ vector<string> getAvailableTrains(unordered_map<string,Train*> trn, string src, 
     }
     return ans;
 }
-set<string> checkBookingRequest(vector<string>& userRequest,unordered_map<string, Train*> trains){
-    set<string> ans;
-    string src = userRequest[0];
-    string dest = userRequest[1];
-    string journeyDate = userRequest[2];
-    string coachCategory = userRequest[3];
-    int totalSeats = stoi(userRequest[4]);
-
-    //first finding trains based on source and destination and coach
-    vector<string> trainsAvailable = getAvailableTrains(trains,src,dest,coachCategory);
-    if(trainsAvailable.size()){
-        for(auto trainNumber:trainsAvailable){
-            if(checkVacancy(trainNumber,trains,src,dest,journeyDate,coachCategory,totalSeats)){
-                ans.insert(trainNumber);
-            }
-        }
-        if(ans.size() == 0) cout<<"No Seats Available\n";
-    }else cout<<"No Trains Available\n";
-    return ans;
-}
-//main ticket booking function
-vector<string> bookTicket(Train *trn,vector<string>& userRequest){
-    vector<string> bookedSeatsNumber;
+/*
+Main book ticket function
+this will return a 2d vector
+ans = vector<vector<string>>
+ans[0] = vector of booked seates number
+ans[1] = vector of waiting seates number
+*/
+vector<pair<Ticket*,Seat*>> bookTicket(UserTicket* currTicket,Train *trn,vector<string>& userRequest,int pnr){
+    vector<pair<Ticket*,Seat*>> ans;
     unordered_map<string, char> mp;
     mp["SL"] = 'S';
     mp["3A"] = 'B';
@@ -220,25 +239,49 @@ vector<string> bookTicket(Train *trn,vector<string>& userRequest){
     int totalSeats = stoi(userRequest[4]);
 
     int seatsBooked = 0;
-    vector<string> bookSeat;//to store the booked seats (for future use)
+    //vector<string> bookSeat;//to store the booked seats (for future use)
+    //first booking all the free seats
     for (auto coach : trn->coaches){
         if (coach->category == mp[coachCategory]){
             for (auto seat : coach->seats){
-                if (seatsBooked == totalSeats) return bookedSeatsNumber;
+                if (seatsBooked == totalSeats) return ans; 
+                //if current seat is not reserved then book the ticket
                 if (isSeatNotReserved(trn,seat,journeyDate,src,dest)){
                     seatsBooked++;
                     string seatNumber = coach->category + to_string(coach->coachNum) + "-" + to_string(seat->number);
-                    bookedSeatsNumber.push_back(seatNumber);
-                    Ticket* currTicket = new Ticket();
-                    seat->tickets.push_back(currTicket);
-                    currTicket->src = make_pair(src,trn->routes[src]);
-                    currTicket->dest = make_pair(dest,trn->routes[dest]);
-                    currTicket->date = journeyDate;
+                    Ticket* newTicket = new Ticket();
+                    seat->tickets[pnr] = newTicket;//mapping pnr with ticket
+                    newTicket->status = "Confirmed";
+                    newTicket->seatNumber = seatNumber;
+                    newTicket->src = make_pair(src,trn->routes[src]);
+                    newTicket->dest = make_pair(dest,trn->routes[dest]);
+                    newTicket->date = journeyDate;
+                    newTicket->pnr = pnr;
+                    newTicket->coachCategory = coach->category;
+                    ans.push_back(make_pair(newTicket,seat));
                 }
             }
         }
     }
-    return bookedSeatsNumber;
+    //checking for remaining tickes
+    int ticketsLeft = totalSeats - seatsBooked;
+    for(int i=0;i<ticketsLeft;i++){
+        Ticket* newTicket = new Ticket();
+        newTicket->date = journeyDate;
+        newTicket->src = make_pair(src,trn->routes[src]);
+        newTicket->dest = make_pair(dest,trn->routes[dest]); 
+        newTicket->status = "Waiting";
+        newTicket->coachCategory = mp[coachCategory];
+        newTicket->pnr = pnr;
+        string waitingNumberString = "WL-" + to_string(trn->waitingCount);
+        newTicket->seatNumber = waitingNumberString;
+        //adding the current ticket in waiting list of train
+        trn->waitingList[waitingNumberString] = newTicket;
+        Seat* temp = new Seat();
+        ans.push_back(make_pair(newTicket,temp));
+        trn->waitingCount++;
+    }
+    return ans;
 }
 void getDetailsByPNR(int pnr,unordered_map<int, UserTicket*>& tickets){
     if(tickets.find(pnr) == tickets.end()){
@@ -247,11 +290,11 @@ void getDetailsByPNR(int pnr,unordered_map<int, UserTicket*>& tickets){
     }
     UserTicket* currTicket = tickets[pnr];
     cout<<currTicket->trainNumber<<" ";
-    cout<<currTicket->src<<" ";
-    cout<<currTicket->dest<<" ";
+    cout<<currTicket->src.first<<" ";
+    cout<<currTicket->dest.first<<" ";
     cout<<currTicket->date<<" ";
     cout<<currTicket->totalFare<<" ";
-    for(auto seats:currTicket->seatNumbers) cout<<seats<<" ";
+    for(auto mp:currTicket->ticketSeatMap) cout<<mp.first->seatNumber<<" ";
     cout<<endl;
     return;
 }
@@ -265,16 +308,86 @@ void generateReport(unordered_map<int, UserTicket*>& tickets){
         cout<<tkt->pnrNumber<<", ";
         cout<<tkt->date<<", ";
         cout<<tkt->trainNumber<<", ";
-        cout<<tkt->src<<", ";
-        cout<<tkt->dest<<", ";
+        cout<<tkt->src.first<<", ";
+        cout<<tkt->dest.first<<", ";
         cout<<tkt->totalFare<<", ";
-        for(auto seat:tkt->seatNumbers) cout<<seat<<" ";
+        for(auto mp:tkt->ticketSeatMap) cout<<mp.first->seatNumber<<" ";
         cout<<endl;
     }
     return;
 }
+void resetWaitingList(Train* t){
+    map<string,Ticket*> ans;
+    int counter = 1;
+    for(auto i:t->waitingList){
+        if(t->waitingList.size() == 0) break;
+        string currNumber = "WL-" + to_string(counter);
+        //current waiting number is not same as previous waiting number
+        if(currNumber != i.first){
+            i.second->seatNumber = currNumber;
+            ans[currNumber] = i.second;
+        }
+        t->waitingList.erase(i.first);
+        counter++;
+        if(t->waitingList.size() == 0) break;
+    }
+    t->waitingCount = counter;
+    t->waitingList = ans;
+}
+void cancelBooking(int pnr,int quant,Train* train,UserTicket* userTicket){
+    //start traversing the ticket seat mapping vector of UserTicket class
+    int len = userTicket->ticketSeatMap.size();
+    for(int i= len - 1;i>= len - quant;i--){
+        Ticket* currTicket = userTicket->ticketSeatMap[i].first;
+        Seat* currSeat = userTicket->ticketSeatMap[i].second;
+        //if the current booking seat is confirmed
+        if(currTicket->status == "Confirmed"){
+            //remove ticket from current seat
+            currSeat->tickets.erase(pnr);//removing the pnr ticket mapping
+            userTicket->totalSeatsBooked--;
+            userTicket->ticketSeatMap.pop_back();
+            train->cancelledSeats.insert(currSeat);
+        }else{
+            userTicket->ticketSeatMap.pop_back();
+            userTicket->totalSeatsBooked--;
+            train->waitingList.erase(currTicket->seatNumber);
+        }
+    }
+    resetWaitingList(train);
+    return;
+}
+void bookFromWaitingList(Train* trn,unordered_map<int,UserTicket*> allTicketsBooked){
+    for(auto i:trn->waitingList){
+        if(trn->waitingList.size() == 0) break;
+        string waitingNumber = i.first;
+        Ticket* currTicket = i.second;
+        trn->waitingList.erase(waitingNumber);
+        //checking the vacany from the cancelled seats only
+        for(auto seat:trn->cancelledSeats){
+            if(seat->coachCategory == currTicket->coachCategory){
+                if(isSeatNotReserved(trn,seat,currTicket->date,currTicket->src.first,currTicket->dest.first)){
+                    currTicket->status = "Confirmed";
+                    currTicket->seatNumber = seat->coachCategory + to_string(seat->coachNum) + "-" + to_string(seat->number);
+                    int pnr = currTicket->pnr;
+                    seat->tickets[pnr] = currTicket;
+                    UserTicket* currUser = allTicketsBooked[pnr];
+                    for(int i=0;i<currUser->ticketSeatMap.size();i++){
+                        if(currUser->ticketSeatMap[i].first == currTicket){
+                            currUser->ticketSeatMap[i].second = seat;
+                        }
+                    }
+                    trn->cancelledSeats.erase(seat); 
+                    break;                 
+                }
+            }
+        }
+        if(trn->waitingList.size() == 0) break;
+    }
+    resetWaitingList(trn);
+    return;    
+}
 int main(){
-    // data of all trains
+    // map of train : train number -> train details
     unordered_map<string,Train*> trains;
 
     //maping of pnr number with user ticket
@@ -313,6 +426,7 @@ int main(){
     }
     //user request start
     int PNR = 100000001;
+    int waitingNumber = 1;
     while (true){
         //sample input : Ahmedabad Surat 2023-03-15 1A 2
         string requestStr;
@@ -321,7 +435,7 @@ int main(){
 
         //ticket booking request
         if(userRequest.size() == 5){
-            set<string> trainsAvailables = checkBookingRequest(userRequest,trains);
+            set<string> trainsAvailables = getAvailableTrains(userRequest,trains);
             if(trainsAvailables.size() != 0){
                 for(auto i:trainsAvailables){
                     cout<<i<<" ";
@@ -335,20 +449,24 @@ int main(){
                     continue;
                 }
                 Train* userDemandTrain = trains[trainNumber];
+                //book ticket
                 UserTicket* currTicket = new UserTicket();
+                currTicket->pnrNumber = PNR;
+                currTicket->trainNumber = trainNumber;
+                currTicket->src = make_pair(userRequest[0],getStationDistance(userDemandTrain,userRequest[0]));
+                currTicket->dest = make_pair(userRequest[1],getStationDistance(userDemandTrain,userRequest[1]));
+                currTicket->date = userRequest[2];
+                currTicket->totalSeatsBooked = stoi(userRequest[4]);
+                currTicket->coachClass = userRequest[3];
+                currTicket->ticketSeatMap = bookTicket(currTicket,userDemandTrain,userRequest,PNR);
+                currTicket->totalFare = findFare(currTicket);
+                cout<<currTicket->pnrNumber<<" "<<currTicket->totalFare<<endl;
+
                 //adding ticket to pnr->ticket map
                 allTicketsBooked[PNR] = currTicket;
-
-                currTicket->pnrNumber = PNR++;
-                currTicket->trainNumber = trainNumber;
-                currTicket->src = userRequest[0];
-                currTicket->dest = userRequest[1];
-                currTicket->date = userRequest[2];
-                currTicket->seatNumbers = bookTicket(userDemandTrain,userRequest);
-                currTicket->totalFare = findFare(userDemandTrain,userRequest);
-
-                cout<<currTicket->pnrNumber<<" "<<currTicket->totalFare<<endl;
-            }
+                
+                PNR++;
+            }else cout<<"No Trains Available\n";
         }
         //pnr input request
         else if(userRequest.size() == 1 && userRequest[0].size() == 9){
@@ -359,6 +477,26 @@ int main(){
         //report generation request
         else if(userRequest.size() == 1 && userRequest[0] == "REPORT"){
             generateReport(allTicketsBooked);
+        }
+        //cancellation request
+        else if(userRequest.size() == 3 && userRequest[0] == "CANCEL"){
+            //check if pnr number is valid or not
+            if(allTicketsBooked.find(stoi(userRequest[1])) != allTicketsBooked.end()){
+                //checking if seats to cancel is <= booked seats
+                UserTicket* currTicket = allTicketsBooked[stoi(userRequest[1])];
+                if(currTicket->totalSeatsBooked >= stoi(userRequest[2])){
+                    int pnrCancel = stoi(userRequest[1]);
+                    cancelBooking(pnrCancel,stoi(userRequest[2]),trains[allTicketsBooked[pnrCancel]->trainNumber],allTicketsBooked[stoi(userRequest[1])]);
+                    //finding the fare again
+                    currTicket->totalFare = findFare(currTicket);
+                    cout<<currTicket->pnrNumber<<" "<<currTicket->totalFare<<endl;
+                    bookFromWaitingList(trains[allTicketsBooked[pnrCancel]->trainNumber],allTicketsBooked);
+                }else{
+                    cout<<"Cancellation request is more than booked seats....Try Again!!\n";
+                }
+            }else{
+                cout<<"Invalid PNR\n";
+            }
         }
         else{
             cout<<"Invalid Input\n";
