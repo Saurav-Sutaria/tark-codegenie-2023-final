@@ -316,24 +316,6 @@ void generateReport(unordered_map<int, UserTicket*>& tickets){
     }
     return;
 }
-void resetWaitingList(Train* t){
-    map<string,Ticket*> ans;
-    int counter = 1;
-    for(auto i:t->waitingList){
-        if(t->waitingList.size() == 0) break;
-        string currNumber = "WL-" + to_string(counter);
-        //current waiting number is not same as previous waiting number
-        if(currNumber != i.first){
-            i.second->seatNumber = currNumber;
-            ans[currNumber] = i.second;
-        }
-        t->waitingList.erase(i.first);
-        counter++;
-        if(t->waitingList.size() == 0) break;
-    }
-    t->waitingCount = counter;
-    t->waitingList = ans;
-}
 void cancelBooking(int pnr,int quant,Train* train,UserTicket* userTicket){
     //start traversing the ticket seat mapping vector of UserTicket class
     int len = userTicket->ticketSeatMap.size();
@@ -353,15 +335,13 @@ void cancelBooking(int pnr,int quant,Train* train,UserTicket* userTicket){
             train->waitingList.erase(currTicket->seatNumber);
         }
     }
-    resetWaitingList(train);
     return;
 }
 void bookFromWaitingList(Train* trn,unordered_map<int,UserTicket*> allTicketsBooked){
     for(auto i:trn->waitingList){
-        if(trn->waitingList.size() == 0) break;
+        if(trn->waitingList.size() == 0 || trn->cancelledSeats.size() == 0) break;
         string waitingNumber = i.first;
         Ticket* currTicket = i.second;
-        trn->waitingList.erase(waitingNumber);
         //checking the vacany from the cancelled seats only
         for(auto seat:trn->cancelledSeats){
             if(seat->coachCategory == currTicket->coachCategory){
@@ -377,13 +357,13 @@ void bookFromWaitingList(Train* trn,unordered_map<int,UserTicket*> allTicketsBoo
                         }
                     }
                     trn->cancelledSeats.erase(seat); 
+                    trn->waitingList.erase(waitingNumber);
                     break;                 
                 }
             }
         }
         if(trn->waitingList.size() == 0) break;
     }
-    resetWaitingList(trn);
     return;    
 }
 int main(){
