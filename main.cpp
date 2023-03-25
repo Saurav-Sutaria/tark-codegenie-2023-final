@@ -366,6 +366,21 @@ void bookFromWaitingList(Train* trn,unordered_map<int,UserTicket*> allTicketsBoo
     }
     return;    
 }
+void resetWaitingList(Train* t){
+    map<string,Ticket*> ans;
+    int counter = 1;
+    for(auto i:t->waitingList){
+        string currNumber = "WL-" + to_string(counter);
+        //current waiting number is not same as previous waiting number
+        if(currNumber != i.first){
+            i.second->seatNumber = currNumber;
+            ans[currNumber] = i.second;
+        }
+        counter++;
+    }
+    t->waitingCount = counter;
+    t->waitingList = ans;
+}
 int main(){
     // map of train : train number -> train details
     unordered_map<string,Train*> trains;
@@ -464,13 +479,15 @@ int main(){
             if(allTicketsBooked.find(stoi(userRequest[1])) != allTicketsBooked.end()){
                 //checking if seats to cancel is <= booked seats
                 UserTicket* currTicket = allTicketsBooked[stoi(userRequest[1])];
+                Train* currTrain = trains[currTicket->trainNumber];
                 if(currTicket->totalSeatsBooked >= stoi(userRequest[2])){
                     int pnrCancel = stoi(userRequest[1]);
-                    cancelBooking(pnrCancel,stoi(userRequest[2]),trains[allTicketsBooked[pnrCancel]->trainNumber],allTicketsBooked[stoi(userRequest[1])]);
+                    cancelBooking(pnrCancel,stoi(userRequest[2]),currTrain,allTicketsBooked[stoi(userRequest[1])]);
                     //finding the fare again
                     currTicket->totalFare = findFare(currTicket);
                     cout<<currTicket->pnrNumber<<" "<<currTicket->totalFare<<endl;
                     bookFromWaitingList(trains[allTicketsBooked[pnrCancel]->trainNumber],allTicketsBooked);
+                    resetWaitingList(currTrain);
                 }else{
                     cout<<"Cancellation request is more than booked seats....Try Again!!\n";
                 }
